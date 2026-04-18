@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="screen-orientation" content="landscape">
 <title>Shadow Evolution</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap');
@@ -14,6 +15,24 @@
   --text:#c8d8f0;--dim:#4a5a7a;
 }
 body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;overflow:hidden;user-select:none;}
+
+/* ── FORCE LANDSCAPE in mobile mode ── */
+#rotate-prompt{
+  display:none;
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  flex-direction:column;align-items:center;justify-content:center;gap:20px;
+}
+#rotate-prompt .rot-icon{font-size:64px;animation:rotpulse 1.2s ease-in-out infinite;}
+@keyframes rotpulse{0%,100%{transform:rotate(0deg)}50%{transform:rotate(90deg)}}
+#rotate-prompt p{font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:3px;color:var(--neon);text-align:center;}
+
+/* When mobile mode is active AND device is portrait → show rotate prompt, hide game */
+body.mobile-mode.portrait #rotate-prompt{display:flex;}
+body.mobile-mode.portrait #screen-title,
+body.mobile-mode.portrait #screen-game,
+body.mobile-mode.portrait #screen-upgrade,
+body.mobile-mode.portrait #screen-gameover{display:none!important;}
 
 /* ───── SCREENS ───── */
 #screen-title,#screen-game,#screen-upgrade,#screen-gameover{position:absolute;inset:0;display:none;}
@@ -186,6 +205,12 @@ kbd{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);bord
 </style>
 </head>
 <body>
+
+<!-- ROTATE PROMPT (mobile portrait only) -->
+<div id="rotate-prompt">
+  <div class="rot-icon">📱</div>
+  <p>ROTATE YOUR DEVICE<br>TO LANDSCAPE</p>
+</div>
 
 <!-- TITLE SCREEN -->
 <div id="screen-title" class="active">
@@ -2561,6 +2586,7 @@ function gameOver(){
 }
 
 function restartGame(){
+  document.body.classList.remove('mobile-mode','portrait');
   document.getElementById('title-step1').style.display='flex';
   document.getElementById('title-step2').style.display='none';
   setScreen('title');
@@ -2581,8 +2607,28 @@ function showMainTitle(){
 
 function selectModeAndStart(m){
   gameMode=m;
+  if(m==='mobile') document.body.classList.add('mobile-mode');
+  else document.body.classList.remove('mobile-mode');
   startGame();
 }
+
+// ── ORIENTATION DETECTION (mobile mode only) ──
+function checkOrientation(){
+  if(!document.body.classList.contains('mobile-mode')) return;
+  const isPortrait=window.innerHeight>window.innerWidth;
+  document.body.classList.toggle('portrait', isPortrait);
+  // pause/resume game if orientation changes mid-game
+  if(isPortrait && gs.running){
+    gs.running=false;
+  } else if(!isPortrait && !gs.running && document.getElementById('screen-game').classList.contains('active')){
+    gs.running=true;
+    lastTime=performance.now();
+    requestAnimationFrame(loop);
+  }
+}
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', ()=>setTimeout(checkOrientation,200));
+checkOrientation();
 
 // Show/hide controls based on mode
 function applyModeControls(){
